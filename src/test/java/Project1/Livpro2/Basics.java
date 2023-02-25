@@ -1,6 +1,16 @@
 package Project1.Livpro2;
 
 import io.restassured.RestAssured;
+import io.restassured.path.json.JsonPath;
+
+import static org.hamcrest.MatcherAssert.assertThat; 
+import static org.hamcrest.Matchers.*;
+
+import org.testng.Assert;
+
+import files.ReUsableMethods;
+import files.payload;
+
 import static io.restassured.RestAssured.*;
 
 public class Basics {
@@ -9,25 +19,39 @@ public class Basics {
 		//Add map API
 		
 		RestAssured.baseURI = "https://rahulshettyacademy.com";
-		given().log().all().queryParam("key ", "qaclick123").header("Content-Type", "application/json").
-		body("{\r\n"
-				+ "  \"location\": {\r\n"
-				+ "    \"lat\": -38.383494,\r\n"
-				+ "    \"lng\": 33.427362\r\n"
-				+ "  },\r\n"
-				+ "  \"accuracy\": 50,\r\n"
-				+ "  \"name\": \"Frontline house\",\r\n"
-				+ "  \"phone_number\": \"(+91) 983 893 3937\",\r\n"
-				+ "  \"address\": \"29, side layout, cohen 09\",\r\n"
-				+ "  \"types\": [\r\n"
-				+ "    \"shoe park\",\r\n"
-				+ "    \"shop\"\r\n"
-				+ "  ],\r\n"
-				+ "  \"website\": \"http://google.com\",\r\n"
-				+ "  \"language\": \"French-IN\"\r\n"
-				+ "}\r\n"
-				+ "").
+		String response_add = given().log().all().queryParam("key ", "qaclick123").header("Content-Type", "application/json").
+		body(payload.AddPlace()).
 		when().post("/maps/api/place/add/json").
-		then().log().all().statusCode(200);
-	}
+		then().assertThat().log().all().statusCode(200).body("scope", equalTo("APP")).
+		header("server", "Apache/2.4.41 (Ubuntu)").extract().response().asString();
+		
+		System.out.println(response_add);
+		JsonPath js = new JsonPath(response_add);
+		String place_id = js.getString("place_id");
+		System.out.println(place_id);
+		
+		//update place
+		String new_place_id ="Bangalore karnataka";
+		given().log().all().queryParam("key ", "qaclick123").
+		header("Content-Type", "application/json").body("{\r\n"
+				+ "\"place_id\":\""+place_id+"\",\r\n"
+				+ "\"address\":\""+new_place_id+"\",\r\n"
+				+ "\"key\":\"qaclick123\"\r\n"
+				+ "}\r\n"
+				+ "")
+		.when().put("/maps/api/place/update/json")
+		.then().assertThat().log().all().statusCode(200).body("msg", equalTo("Address successfully updated"));
+		
+		//Get place
+		String getPlaceResponse=	given().log().all().queryParam("key", "qaclick123")
+				.queryParam("place_id",place_id)
+				.when().get("maps/api/place/get/json")
+				.then().assertThat().log().all().statusCode(200).extract().response().asString();
+			JsonPath js1=ReUsableMethods.rawToJson(getPlaceResponse);
+			String actualAddress =js1.getString("address");
+			System.out.println(actualAddress);
+			Assert.assertEquals(actualAddress, new_place_id);
+			//Cucumber Junit, Testng
+			
+			}
 }
